@@ -36,11 +36,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "corsheaders",
     "rest_framework",
     "apps.toolkit",
 ]
 
 MIDDLEWARE = [
+    # Must stay first: it has to attach headers to the browser's preflight
+    # OPTIONS request, which never reaches a view.
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -163,3 +167,17 @@ GROQ_URL = os.environ.get("GROQ_URL", "https://api.groq.com/openai/v1/chat/compl
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_TIMEOUT = float(os.environ.get("GROQ_TIMEOUT", "60"))
+
+
+# --- CORS ---
+# Origins allowed to call this API from a browser. Entries must be
+# scheme://host[:port] with no trailing slash, matching the Origin header.
+# Defaults cover the local Vite dev server; production sets the real frontend.
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    if o.strip()
+]

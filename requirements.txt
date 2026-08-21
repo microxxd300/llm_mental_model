@@ -5,6 +5,9 @@
 Django==6.1
 djangorestframework==3.18.0
 
+# Sends the CORS headers the browser needs to let the frontend call this API
+django-cors-headers==4.9.0
+
 # Loads .env into environment variables
 python-dotenv==1.2.3
 
