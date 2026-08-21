@@ -1,4 +1,4 @@
--r base.txt
+-r requirements.txt
 
 # Linting and formatting
 ruff==0.16.4

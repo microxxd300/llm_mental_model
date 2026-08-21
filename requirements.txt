@@ -1,1 +1,12 @@
--r requirements/base.txt
+# Production dependencies. Pinned for reproducible installs.
+# Lives at the repo root because Vercel installs from this path and its parser
+# does not follow "-r" includes. Dev-only tools go in requirements-dev.txt.
+
+Django==6.1
+djangorestframework==3.18.0
+
+# Loads .env into environment variables
+python-dotenv==1.2.3
+
+# HTTP client for model API calls
+httpx==0.28.1
