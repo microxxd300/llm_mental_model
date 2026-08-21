@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+from decimal import Decimal
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -131,3 +132,17 @@ REST_FRAMEWORK = {
         'core.renderers.EnvelopeJSONRenderer',
     ],
 }
+
+# --- LLM provider ---
+
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
+OLLAMA_TIMEOUT = float(os.environ.get("OLLAMA_TIMEOUT", "120"))
+
+# Per 1,000,000 tokens (USD). Local inference is free; this estimates what the
+# same request would cost hosted. Verify at https://claude.com/pricing
+EQUIVALENT_PRICES = {
+    "claude-haiku-4-5": {"input": Decimal("1.00"), "output": Decimal("5.00")},
+    "claude-opus-5": {"input": Decimal("5.00"), "output": Decimal("25.00")},
+}
+
