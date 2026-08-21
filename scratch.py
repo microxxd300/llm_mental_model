@@ -4,8 +4,9 @@ Day 2 scratch — one raw HTTP call to a local model, no Django in the way.
 Run:  ./venv/Scripts/python.exe scratch.py
 """
 
-from decimal import Decimal
 import json
+from decimal import Decimal
+
 import httpx
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
