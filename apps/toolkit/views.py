@@ -1,13 +1,20 @@
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from .serializers import SummarizeRequestSerializer
 from .services import LLMError, summarize
 
 
+class SummarizeThrottle(AnonRateThrottle):
+    scope = "summarize"
+
+
 class HealthView(APIView):
     """Liveness check. Returns 200 if the service is running."""
+
+    throttle_classes = []
 
     def get(self, request):
         return Response({"status": "ok"})
@@ -15,6 +22,8 @@ class HealthView(APIView):
 
 class SummarizeView(APIView):
     """POST text, get a summary with token usage and estimated cost."""
+
+    throttle_classes = [SummarizeThrottle]
 
     def post(self, request):
         serializer = SummarizeRequestSerializer(data=request.data)

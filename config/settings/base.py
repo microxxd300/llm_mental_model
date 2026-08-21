@@ -117,6 +117,9 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+# Vercel runs collectstatic during the build and serves the result from its CDN.
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
@@ -131,7 +134,15 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "core.renderers.EnvelopeJSONRenderer",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/hour",
+        "summarize": "10/hour",
+    },
 }
+
 
 # --- LLM provider ---
 
