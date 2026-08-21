@@ -63,13 +63,15 @@ print(f"input tokens:  {input_tokens}")
 print(f"output tokens: {output_tokens}")
 print(f"total time:    {data['total_duration'] / 1_000_000_000:.2f}s")
 
+
 def equivalent_cost(model_name, input_tokens, output_tokens):
-    """ What this request would have cost on hoster provider, in USD."""
+    """What this request would have cost on hoster provider, in USD."""
     rates = EQUIVALENT_PRICES[model_name]
     return (
         Decimal(input_tokens) / Decimal(1_000_000) * rates["input"]
         + Decimal(output_tokens) / Decimal(1_000_000) * rates["output"]
     )
+
 
 print("\n--- cost ---")
 print("actual (local):$0.000000")

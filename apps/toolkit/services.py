@@ -8,21 +8,10 @@ class LLMError(Exception):
     """Raised when the model provider fails or returns something unusable."""
 
 
-def _call_ollama(messages, temperature=0.2):
-    """POST messages to Ollama. Returns (text, input_tokens, output_tokens, done_reason)."""
-    payload = {
-        "model": settings.OLLAMA_MODEL,
-        "messages": messages,
-        "stream": False,
-        "options": {"temperature": temperature},
-    }
-
+def _post(url, payload, timeout, headers=None):
+    """POST JSON and return the parsed body. Every transport failure becomes LLMError."""
     try:
-        response = httpx.post(
-            settings.OLLAMA_URL,
-            json=payload,
-            timeout=settings.OLLAMA_TIMEOUT,
-        )
+        response = httpx.post(url, json=payload, headers=headers or {}, timeout=timeout)
         response.raise_for_status()
     except httpx.TimeoutException as exc:
         raise LLMError("The model took too long to respond.") from exc
@@ -30,21 +19,80 @@ def _call_ollama(messages, temperature=0.2):
         raise LLMError(f"Model provider returned {exc.response.status_code}.") from exc
     except httpx.RequestError as exc:
         raise LLMError("Could not reach the model provider.") from exc
+    return response.json()
 
-    data = response.json()
+
+def _call_ollama(messages, temperature=0.2):
+    """Call a local Ollama server. Returns the normalized result dict."""
+    data = _post(
+        settings.OLLAMA_URL,
+        {
+            "model": settings.OLLAMA_MODEL,
+            "messages": messages,
+            "stream": False,
+            "options": {"temperature": temperature},
+        },
+        settings.OLLAMA_TIMEOUT,
+    )
 
     try:
-        return (
-            data["message"]["content"],
-            data["prompt_eval_count"],
-            data["eval_count"],
-            data["done_reason"],
-        )
+        return {
+            "text": data["message"]["content"],
+            "input_tokens": data["prompt_eval_count"],
+            "output_tokens": data["eval_count"],
+            "finish_reason": data["done_reason"],
+            "model": settings.OLLAMA_MODEL,
+        }
     except KeyError as exc:
-        raise LLMError(f"Unexpected response from provider: missing {exc}.") from exc
+        raise LLMError(f"Unexpected Ollama response: missing {exc}.") from exc
+
+
+def _call_groq(messages, temperature=0.2):
+    """Call the Groq API. Returns the normalized result dict."""
+    if not settings.GROQ_API_KEY:
+        raise LLMError("GROQ_API_KEY is not set.")
+
+    data = _post(
+        settings.GROQ_URL,
+        {
+            "model": settings.GROQ_MODEL,
+            "messages": messages,
+            "temperature": temperature,
+        },
+        settings.GROQ_TIMEOUT,
+        headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
+    )
+
+    try:
+        choice = data["choices"][0]
+        return {
+            "text": choice["message"]["content"],
+            "input_tokens": data["usage"]["prompt_tokens"],
+            "output_tokens": data["usage"]["completion_tokens"],
+            "finish_reason": choice["finish_reason"],
+            "model": settings.GROQ_MODEL,
+        }
+    except (KeyError, IndexError) as exc:
+        raise LLMError(f"Unexpected Groq response: {exc}.") from exc
+
+
+PROVIDERS = {
+    "ollama": _call_ollama,
+    "groq": _call_groq,
+}
+
+
+def call_llm(messages, temperature=0.2):
+    """Send messages to the configured provider."""
+    provider = PROVIDERS.get(settings.LLM_PROVIDER)
+    if provider is None:
+        raise LLMError(f"Unknown LLM_PROVIDER: {settings.LLM_PROVIDER!r}.")
+    return provider(messages, temperature=temperature)
 
 
 SUMMARIZE_SYSTEM = "You are a concise summarizer. Reply with the summary only, no preamble."
+
+TRUNCATED_REASONS = {"length", "max_tokens"}
 
 
 def equivalent_cost(input_tokens, output_tokens):
@@ -66,16 +114,17 @@ def summarize(text):
         {"role": "user", "content": f"Summarize the following text:\n\n{text}"},
     ]
 
-    content, input_tokens, output_tokens, done_reason = _call_ollama(messages)
+    result = call_llm(messages)
 
     return {
-        "summary": content.strip(),
-        "model": settings.OLLAMA_MODEL,
-        "truncated": done_reason == "length",
+        "summary": result["text"].strip(),
+        "provider": settings.LLM_PROVIDER,
+        "model": result["model"],
+        "truncated": result["finish_reason"] in TRUNCATED_REASONS,
         "usage": {
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-        }, 
+            "input_tokens": result["input_tokens"],
+            "output_tokens": result["output_tokens"],
+        },
         "cost_usd": "0.000000",
-        "equivalent_cost_usd": equivalent_cost(input_tokens, output_tokens),
+        "equivalent_cost_usd": equivalent_cost(result["input_tokens"], result["output_tokens"]),
     }

@@ -1,3 +1,4 @@
 -r base.txt
 
-#Development-only tooling goes here as its added(linters, test runners).
+# Linting and formatting
+ruff==0.16.4

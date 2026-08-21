@@ -1,7 +1,9 @@
 from rest_framework.renderers import JSONRenderer
 
+
 class EnvelopeJSONRenderer(JSONRenderer):
-    """ Wrap every response body in {data, error, message} """
+    """Wrap every response body in {data, error, message}"""
+
     def render(self, data, accepted_media_type=None, renderer_context=None):
         renderer_context = renderer_context or {}
         response = renderer_context.get("response")
