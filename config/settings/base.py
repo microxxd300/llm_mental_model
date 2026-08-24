@@ -143,7 +143,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "60/hour",
-        "summarize": "10/hour",
+        "llm": "10/hour",
     },
 }
 

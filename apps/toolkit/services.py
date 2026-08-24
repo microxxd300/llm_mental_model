@@ -92,6 +92,17 @@ def call_llm(messages, temperature=0.2):
 
 SUMMARIZE_SYSTEM = "You are a concise summarizer. Reply with the summary only, no preamble."
 
+REWRITE_SYSTEM = (
+    "You rewrite text in a requested tone. Preserve the meaning and every fact. "
+    "Reply with the rewritten text only, no preamble and no commentary."
+)
+
+TRANSLATE_SYSTEM = (
+    "You are a translator. Translate the user's text into the requested language, "
+    "preserving meaning and tone. Reply with the translation only, no preamble "
+    "and no commentary."
+)
+
 TRUNCATED_REASONS = {"length", "max_tokens"}
 
 
@@ -107,17 +118,11 @@ def equivalent_cost(input_tokens, output_tokens):
     return costs
 
 
-def summarize(text):
-    """Summarize text. Returns a dict ready for the API response."""
-    messages = [
-        {"role": "system", "content": SUMMARIZE_SYSTEM},
-        {"role": "user", "content": f"Summarize the following text:\n\n{text}"},
-    ]
-
-    result = call_llm(messages)
-
+def _run(messages, output_key, temperature=0.2):
+    """Call the provider and shape the response body every endpoint returns."""
+    result = call_llm(messages, temperature=temperature)
     return {
-        "summary": result["text"].strip(),
+        output_key: result["text"].strip(),
         "provider": settings.LLM_PROVIDER,
         "model": result["model"],
         "truncated": result["finish_reason"] in TRUNCATED_REASONS,
@@ -126,5 +131,47 @@ def summarize(text):
             "output_tokens": result["output_tokens"],
         },
         "cost_usd": "0.000000",
-        "equivalent_cost_usd": equivalent_cost(result["input_tokens"], result["output_tokens"]),
+        "equivalent_cost_usd": equivalent_cost(
+            result["input_tokens"], result["output_tokens"]
+        ),
     }
+
+
+def summarize(text):
+    """Summarize text. Returns a dict ready for the API response."""
+    return _run(
+        [
+            {"role": "system", "content": SUMMARIZE_SYSTEM},
+            {"role": "user", "content": f"Summarize the following text:\n\n{text}"},
+        ],
+        "summary",
+    )
+
+
+def rewrite(text, tone):
+    """Rewrite text in the given tone."""
+    return _run(
+        [
+            {"role": "system", "content": REWRITE_SYSTEM},
+            {
+                "role": "user",
+                "content": f"Rewrite the following text in a {tone} tone:\n\n{text}",
+            },
+        ],
+        "rewrite",
+        temperature=0.8,
+    )
+
+
+def translate(text, target_language):
+    """Translate text into the target language."""
+    return _run(
+        [
+            {"role": "system", "content": TRANSLATE_SYSTEM},
+            {
+                "role": "user",
+                "content": f"Translate the following text into {target_language}:\n\n{text}",
+            },
+        ],
+        "translation",
+    )
